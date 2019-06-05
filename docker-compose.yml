@@ -1,0 +1,94 @@
+version: '3'
+
+services:
+  csv_uploader:
+    build:
+      context: .
+      dockerfile: csv_uploader/Dockerfile
+    command: bash -c "./bin/rails server -p 3000 -b 0.0.0.0"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./csv_uploader:/usr/src/app
+      - csv_uploader_binstubs:/usr/src/app/bin
+      - csv_uploader_bundle:/usr/src/app/vendor/bundle
+    env_file:
+      - ./csv_uploader/.env.development
+    depends_on:
+      - postgres
+    networks:
+      - borrow_works
+
+  csv_parser:
+    build:
+      context: .
+      dockerfile: csv_parser/Dockerfile
+    command: bash -c "./bin/rails server -p 300 -b 0.0.0.0"
+    volumes:
+      - ./csv_parser:/usr/src/app
+      - csv_parser_binstubs:/usr/src/app/bin
+      - csv_parser_bundle:/usr/src/app/vendor/bundle
+    env_file:
+      - ./csv_parser/.env.development
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - borrow_works
+
+  csv_search_api:
+    build:
+      context: .
+      dockerfile: csv_search_api/Dockerfile
+    command: bash -c "./bin/rails server -p 3001 -b 0.0.0.0"
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./csv_search_api:/usr/src/app
+      - csv_search_api_binstubs:/usr/src/app/bin
+      - csv_search_api_bundle:/usr/src/app/vendor/bundle
+    env_file:
+      - ./csv_search_api/.env.development
+    depends_on:
+      - postgres
+    networks:
+      - borrow_works
+
+  postgres:
+    image: postgres:11.3
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - ./postgres/.env.development
+    networks:
+      - borrow_works
+
+  redis:
+    image: redis:5.0.5
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    env_file:
+      - ./redis/.env.development
+    networks:
+      - borrow_works
+
+networks:
+  borrow_works:
+
+volumes:
+  csv_uploader:
+  csv_parser:
+  csv_search_api:
+  csv_uploader_binstubs:
+  csv_parser_binstubs:
+  csv_search_api_binstubs:
+  csv_uploader_bundle:
+  csv_parser_bundle:
+  csv_search_api_bundle:
+  postgres_data:
+  redis_data:
