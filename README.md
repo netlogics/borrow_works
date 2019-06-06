@@ -4,7 +4,7 @@
 * Uploading, parsing, storing and searching is broken up into services.
 * Services are orchestrated using docker-compose.
 * The uploader service saves files to public/tmp/storage. This was to avoid configuration and costs of any external services such as s3. After a file is saved an event/sidekiq job is created.
-* The parser service runs the Sidekiq workers which trigger parsing. After the files are parsed they are s
+* The parser service runs the Sidekiq workers which trigger parsing. After the files are parsed they are saved to elasticsearch
 * The api search service is the public api for searching location data
 
 ## Whats working
