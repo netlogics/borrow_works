@@ -5,7 +5,8 @@ services:
     build:
       context: .
       dockerfile: csv_uploader/Dockerfile
-    command: bash -c "rm /usr/src/app/tmp/pids/server.pid && ./bin/rails server -p 3000 -b 0.0.0.0"
+    command: bash -c "rm -f /usr/src/app/tmp/pids/server.pid && ./bin/rails server -p 3000 -b 0.0.0.0"
+    # command: bash -c "./bin/rails server -p 3000 -b 0.0.0.0"
     ports:
       - "3000:3000"
     volumes:
@@ -17,6 +18,43 @@ services:
       - ./csv_uploader/.env.development
     depends_on:
       - postgres
+      - redis
+      - parser
+    networks:
+      - borrow_works
+
+  parser:
+    build:
+      context: .
+      dockerfile: parser/Dockerfile
+    command: bash -c "bundle exec sidekiq -r ./worker.rb"
+    volumes:
+      - ./parser:/usr/src/app
+      - parser_bundle:/usr/src/app/vendor/bundle
+      - uploads:/usr/src/app/public/tmp/storage
+    env_file:
+      - ./parser/.env.development
+    depends_on:
+      - redis
+      - elasticsearch
+      - sidekiq_web
+    networks:
+      - borrow_works
+
+  sidekiq_web:
+    build:
+      context: .
+      dockerfile: parser/Dockerfile
+    command: bash -c "./bin/rackup -o 0.0.0.0"
+    ports:
+      - "9292:9292"
+    volumes:
+      - ./sidekiq_web:/usr/src/app
+      - sidekiq_web_bundle:/usr/src/app/vendor/bundle
+    env_file:
+      - ./sidekiq_web/.env.development
+    depends_on:
+      - redis
     networks:
       - borrow_works
 
@@ -24,7 +62,7 @@ services:
     build:
       context: .
       dockerfile: csv_parser/Dockerfile
-    command: bash -c "rm /usr/src/app/tmp/pids/server.pid && ./bin/rails server -p 300 -b 0.0.0.0"
+    command: bash -c "rm -f /usr/src/app/tmp/pids/server.pid && ./bin/rails server -p 3001 -b 0.0.0.0"
     volumes:
       - ./csv_parser:/usr/src/app
       - csv_parser_binstubs:/usr/src/app/bin
@@ -79,19 +117,37 @@ services:
     networks:
       - borrow_works
 
+  elasticsearch:
+    image: elasticsearch:7.1.1
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    env_file:
+      - ./elasticsearch/.env.development
+    networks:
+      - borrow_works
+
+
 networks:
   borrow_works:
 
 volumes:
   csv_uploader:
-  csv_parser:
   csv_search_api:
+  csv_parser:
+  sidekiq_web:
   csv_uploader_binstubs:
   csv_parser_binstubs:
   csv_search_api_binstubs:
   csv_uploader_bundle:
   csv_parser_bundle:
+  sidekiq_web_bundle:
+  parser:
+  parser_bundle:
   csv_search_api_bundle:
   postgres_data:
   redis_data:
+  elasticsearch_data:
   uploads:
